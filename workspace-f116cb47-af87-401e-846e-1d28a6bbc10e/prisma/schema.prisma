@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  password      String
+  role          String        @default("user") // user, admin
+  avatar        String?
+  language      String        @default("en") // en, ru
+  isActive      Boolean       @default(true)
+  lastLoginAt   DateTime?
+  loginCount    Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  workspaces         UserWorkspace[]
+  activityLogs       ActivityLog[]
+  pageCollaborations PageCollaborator[]
+}
+
+model UserWorkspace {
+  id          String @id @default(cuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, workspaceId])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  name        String   @default("My Workspace")
+  icon        String   @default("📝")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pages Page[]
+  users  UserWorkspace[]
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  title       String   @default("Untitled")
+  icon        String   @default("📄")
+  type        String   @default("note") // note, task, kanban, calendar
+  cover       String?  // gradient cover class or null
+  parentId    String?
+  order       Int      @default(0)
+  isFavorite  Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  blocks         Block[]
+  tasks          Task[]
+  columns        KanbanColumn[]
+  collaborators  PageCollaborator[]
+
+  parent   Page?  @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Page[] @relation("PageHierarchy")
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  type      String   @default("text")
+  content   String   @default("")
+  checked   Boolean  @default(false)
+  order     Int      @default(0)
+  metadata  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pageId String
+  page   Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  order       Int      @default(0)
+  dueDate     DateTime?
+  tags        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pageId   String
+  page     Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  columnId String?
+  column   KanbanColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+
+  subtasks TaskSubtask[]
+}
+
+model TaskSubtask {
+  id        String   @id @default(cuid())
+  title     String
+  checked   Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model KanbanColumn {
+  id    String @id @default(cuid())
+  title String @default("New Column")
+  order Int    @default(0)
+  color String @default("#6366f1")
+
+  pageId String
+  page   Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model PageCollaborator {
+  id        String   @id @default(cuid())
+  pageId    String
+  userId    String
+  role      String   @default("viewer") // viewer, editor
+  joinedAt  DateTime @default(now())
+
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, userId])
+}

@@ -1,0 +1,23 @@
+services:
+  nexusai:
+    build: .
+    container_name: nexusai-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/db/nexusai.db
+    volumes:
+      # Persist SQLite database
+      - nexusai-db:/app/db
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  nexusai-db:
+    driver: local

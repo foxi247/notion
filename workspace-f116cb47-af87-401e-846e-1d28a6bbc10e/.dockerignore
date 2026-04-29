@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+*.md
+!.env.example
+db/*.db
+db/*.db-journal
+*.log
+dev.log
+server.log
+mini-services
+server-daemon.js
