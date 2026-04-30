@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -24,17 +25,22 @@ model User {
   workspaces         UserWorkspace[]
   activityLogs       ActivityLog[]
   pageCollaborations PageCollaborator[]
+
+  @@index([email])
 }
 
 model UserWorkspace {
-  id          String @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
-  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, workspaceId])
+  @@index([userId])
+  @@index([workspaceId])
 }
 
 model Workspace {
@@ -65,13 +71,18 @@ model Page {
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  blocks         Block[]
-  tasks          Task[]
-  columns        KanbanColumn[]
-  collaborators  PageCollaborator[]
+  blocks        Block[]
+  tasks         Task[]
+  columns       KanbanColumn[]
+  collaborators PageCollaborator[]
 
   parent   Page?  @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
   children Page[] @relation("PageHierarchy")
+
+  @@index([workspaceId])
+  @@index([parentId])
+  @@index([workspaceId, isArchived])
+  @@index([workspaceId, isFavorite])
 }
 
 model Block {
@@ -80,12 +91,15 @@ model Block {
   content   String   @default("")
   checked   Boolean  @default(false)
   order     Int      @default(0)
-  metadata  String?
+  metadata  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   pageId String
-  page   Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  page   Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([pageId, order])
 }
 
 model Task {
@@ -107,6 +121,10 @@ model Task {
   column   KanbanColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
   subtasks TaskSubtask[]
+
+  @@index([pageId])
+  @@index([columnId])
+  @@index([pageId, status])
 }
 
 model TaskSubtask {
@@ -118,7 +136,9 @@ model TaskSubtask {
   updatedAt DateTime @updatedAt
 
   taskId String
-  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model KanbanColumn {
@@ -131,16 +151,21 @@ model KanbanColumn {
   page   Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   tasks Task[]
+
+  @@index([pageId])
 }
 
 model ActivityLog {
   id        String   @id @default(cuid())
   userId    String?
   action    String
-  details   String?
+  details   Json?
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model PageCollaborator {
@@ -154,4 +179,6 @@ model PageCollaborator {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([pageId, userId])
+  @@index([pageId])
+  @@index([userId])
 }
